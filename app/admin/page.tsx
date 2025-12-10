@@ -36,6 +36,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     setMounted(true)
     checkAuth()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Track if realtime is working to disable polling
@@ -98,7 +99,7 @@ export default function AdminDashboard() {
 
   const checkAuth = async () => {
     try {
-      const { data: { user: authUser } } = await supabase.auth.getUser()
+      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
       
       // If no Supabase auth, check for biometric session
       if (!authUser) {
@@ -119,6 +120,7 @@ export default function AdminDashboard() {
                 setIsLoading(false)
                 return
               } else if (userData && userData.role !== "admin") {
+                setIsLoading(false)
                 router.push("/")
                 return
               }
@@ -129,6 +131,7 @@ export default function AdminDashboard() {
             localStorage.removeItem("biometric_session")
           }
         }
+        setIsLoading(false)
         router.push("/login?redirect=/admin")
         return
       }
@@ -141,15 +144,18 @@ export default function AdminDashboard() {
         .single()
 
       console.log("Admin check - User data:", userData)
+      console.log("Admin check - Error:", error)
 
       if (error || !userData) {
-        console.error("No user profile found")
+        console.error("No user profile found:", error)
+        setIsLoading(false)
         router.push("/login?redirect=/admin")
         return
       }
 
       if (userData.role !== "admin") {
         console.error("User is not admin, role is:", userData.role)
+        setIsLoading(false)
         router.push("/")
         return
       }
@@ -158,6 +164,7 @@ export default function AdminDashboard() {
       setIsLoading(false)
     } catch (err) {
       console.error("Admin auth error:", err)
+      setIsLoading(false)
       router.push("/login?redirect=/admin")
     }
   }
@@ -278,8 +285,27 @@ export default function AdminDashboard() {
     )
   }
 
+  // If not loading but no user, show error message instead of blank screen
   if (!user) {
-    return null
+    return (
+      <div className="min-h-screen bg-[#fffdf9] flex items-center justify-center">
+        <div className="text-center max-w-md mx-auto px-4">
+          <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-5">
+            <img src="/AGARTHA.svg" alt="Agartha" className="w-16 h-16 object-contain" />
+          </div>
+          <h1 className="text-xl font-bold text-[#2d2d2d] mb-2">Authentication Error</h1>
+          <p className="text-[#6b6b6b] text-sm mb-6">
+            Unable to verify admin access. Please try logging in again.
+          </p>
+          <Button
+            onClick={() => router.push("/login?redirect=/admin")}
+            className="bg-[#fd5602] hover:bg-[#e54d00] text-white"
+          >
+            Go to Login
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   if (showCreateOrder) {
