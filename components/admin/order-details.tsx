@@ -132,14 +132,22 @@ export default function AdminOrderDetails({ order: initialOrder, onBack, onUpdat
           table: "orders",
           filter: `id=eq.${order.id}`
         },
-        (payload) => {
-          console.log("Order updated in real-time:", payload)
-          setOrder(payload.new as Order)
-          setLastUpdated(new Date())
-          setShowUpdateFlash(true)
-          setTimeout(() => setShowUpdateFlash(false), 2000)
-          onUpdate()
-        }
+          (payload) => {
+            console.log("Order updated in real-time:", payload);
+            if (payload.new) {
+              console.log("New row:", payload.new);
+              setOrder(payload.new as Order);
+            } else if (payload.record) {
+              console.log("Record row:", payload.record);
+              setOrder(payload.record as Order);
+            } else {
+              console.warn("No new/record data in payload:", payload);
+            }
+            setLastUpdated(new Date());
+            setShowUpdateFlash(true);
+            setTimeout(() => setShowUpdateFlash(false), 2000);
+            onUpdate();
+          }
       )
       .subscribe((status) => {
         console.log(`Order ${order.id} subscription status:`, status)
