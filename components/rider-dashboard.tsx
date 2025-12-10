@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { LogOut, Truck, Package, BarChart3, WifiOff, Wifi, CloudOff, RefreshCw } from "lucide-react"
 import type { Order, User } from "@/types"
+import { forceLogout } from "@/lib/utils/logout"
 
 interface RiderDashboardProps {
   user: User
@@ -119,17 +120,8 @@ export default function RiderDashboard({ user }: RiderDashboardProps) {
   }
 
   const handleLogout = async () => {
-    try {
-      await supabase.auth.signOut()
-      // Clear any local storage
-      localStorage.removeItem(OFFLINE_QUEUE_KEY)
-      localStorage.removeItem("biometric_session")
-      // Force full page navigation to ensure clean state
-      window.location.href = "/login"
-    } catch (error) {
-      console.error("Logout error:", error)
-      window.location.href = "/login"
-    }
+    // Use forceful logout to clear all sessions, storage, and cookies
+    await forceLogout()
   }
 
   const handleSelectOrder = (order: Order) => {

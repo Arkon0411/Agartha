@@ -14,6 +14,7 @@ import {
 import type { Order, User } from "@/types"
 import AdminCreateOrder from "@/components/admin/create-order"
 import AdminOrderDetails from "@/components/admin/order-details"
+import { forceLogout } from "@/lib/utils/logout"
 
 export default function AdminDashboard() {
   const router = useRouter()
@@ -224,16 +225,8 @@ export default function AdminDashboard() {
   }
 
   const handleLogout = async () => {
-    try {
-      await supabase.auth.signOut()
-      // Clear biometric session
-      localStorage.removeItem("biometric_session")
-      // Force full page navigation to ensure clean state
-      window.location.href = "/login"
-    } catch (error) {
-      console.error("Logout error:", error)
-      window.location.href = "/login"
-    }
+    // Use forceful logout to clear all sessions, storage, and cookies
+    await forceLogout()
   }
 
   const getStatusColor = (status: string) => {
