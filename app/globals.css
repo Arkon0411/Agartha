@@ -1,0 +1,296 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  /* Minimalist Orange Theme */
+  --background: 40 33% 98%;
+  --foreground: 0 0% 15%;
+  --card: 0 0% 100%;
+  --card-foreground: 0 0% 15%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 15%;
+  
+  /* Primary: Dark Orange #fd5602 */
+  --primary: 20 99% 50%;
+  --primary-foreground: 0 0% 100%;
+  
+  /* Secondary: Light Orange #ff8303 */
+  --secondary: 31 100% 51%;
+  --secondary-foreground: 0 0% 15%;
+  
+  --muted: 40 20% 96%;
+  --muted-foreground: 0 0% 45%;
+  --accent: 39 98% 81%;
+  --accent-foreground: 0 0% 15%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 40 20% 90%;
+  --input: 40 20% 90%;
+  --ring: 20 100% 72%;
+  --radius: 0.75rem;
+  
+  /* Custom Agartha colors */
+  --agartha-orange: #fd5602;
+  --agartha-orange-light: #ff8303;
+  --agartha-white: #fffdf9;
+  --agartha-text: #2d2d2d;
+  --agartha-text-muted: #6b6b6b;
+}
+
+.dark {
+  --background: 0 0% 8%;
+  --foreground: 0 0% 95%;
+  --card: 0 0% 12%;
+  --card-foreground: 0 0% 95%;
+  --popover: 0 0% 12%;
+  --popover-foreground: 0 0% 95%;
+  --primary: 20 100% 72%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 39 98% 81%;
+  --secondary-foreground: 0 0% 15%;
+  --muted: 0 0% 15%;
+  --muted-foreground: 0 0% 65%;
+  --accent: 39 50% 30%;
+  --accent-foreground: 0 0% 95%;
+  --destructive: 0 62% 30%;
+  --destructive-foreground: 0 0% 95%;
+  --border: 0 0% 20%;
+  --input: 0 0% 20%;
+  --ring: 20 100% 72%;
+}
+
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* Mobile-first optimizations */
+html {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  touch-action: manipulation;
+}
+
+/* Prevent zoom on input focus (iOS) */
+input, textarea, select {
+  font-size: 16px !important;
+}
+
+/* Safe area insets for notched phones */
+.safe-area-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Large touch targets for riders */
+.touch-target {
+  min-height: 48px;
+  min-width: 48px;
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Hide scrollbar but allow scrolling */
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Pull to refresh indicator area */
+.pull-to-refresh {
+  overscroll-behavior-y: contain;
+}
+
+/* Skeleton loading animation */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    hsl(var(--muted)) 25%,
+    hsl(var(--muted-foreground) / 0.1) 50%,
+    hsl(var(--muted)) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Success pulse animation */
+@keyframes success-pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+.success-pulse {
+  animation: success-pulse 0.5s ease-in-out;
+}
+
+/* Slide up animation for cards */
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.slide-up {
+  animation: slide-up 0.3s ease-out;
+}
+
+/* Button press effect */
+button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+/* Card hover effect for desktop */
+@media (hover: hover) {
+  .card-interactive:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+}
+
+/* Status badge colors */
+.status-pending {
+  @apply bg-blue-100 text-blue-800;
+}
+
+.status-accepted {
+  @apply bg-cyan-100 text-cyan-800;
+}
+
+.status-picked_up {
+  @apply bg-indigo-100 text-indigo-800;
+}
+
+.status-delivering {
+  @apply bg-amber-100 text-amber-800;
+}
+
+.status-arrived {
+  @apply bg-purple-100 text-purple-800;
+}
+
+.status-payment_pending {
+  @apply bg-orange-100 text-orange-800;
+}
+
+.status-payment_confirmed {
+  @apply bg-teal-100 text-teal-800;
+}
+
+.status-completed {
+  @apply bg-green-100 text-green-800;
+}
+
+.status-failed {
+  @apply bg-red-100 text-red-800;
+}
+
+/* Print styles for barcode */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  
+  .print-barcode,
+  .print-barcode * {
+    visibility: visible;
+  }
+  
+  .print-barcode {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+}
+
+/* html5-qrcode Scanner Customization */
+#barcode-scanner-container {
+  width: 100% !important;
+  border: none !important;
+  background: transparent !important;
+}
+
+#barcode-scanner-container video {
+  border-radius: 0.75rem;
+  object-fit: cover;
+  max-height: 200px !important;
+}
+
+/* Remove all backgrounds from scanner */
+#barcode-scanner-container > div,
+#barcode-scanner-container #qr-shaded-region,
+#qr-shaded-region {
+  background: transparent !important;
+  border: none !important;
+}
+
+/* Hide the default file scan button, info icon, powered by text, and shaded regions */
+#barcode-scanner-container img[alt="Info icon"],
+#barcode-scanner-container button,
+#barcode-scanner-container span[style*="powered"],
+#barcode-scanner-container a,
+#qr-shaded-region > div {
+  display: none !important;
+}
