@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -27,7 +27,8 @@ export default function AdminOrderDetails({ order: initialOrder, onBack, onUpdat
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [showUpdateFlash, setShowUpdateFlash] = useState(false)
   const [riderDetails, setRiderDetails] = useState<{ full_name: string; phone: string } | null>(null)
-  const supabase = createClient()
+  // Memoize the supabase client so it's not recreated on every render
+  const supabase = useMemo(() => createClient(), [])
 
   // Track if realtime is working
   const [isRealtimeActive, setIsRealtimeActive] = useState(false)
@@ -98,17 +99,17 @@ export default function AdminOrderDetails({ order: initialOrder, onBack, onUpdat
     // Polling fallback - check for updates every 15 seconds (only if realtime not active)
     let lastStatus = order.status
     let lastUpdatedAt = order.updated_at
-    
+
     const pollInterval = setInterval(async () => {
       // Skip polling if realtime is working
       if (isRealtimeActive) return
-      
+
       const { data } = await supabase
         .from("orders")
         .select(orderColumnsForPolling)
         .eq("id", order.id)
         .single()
-      
+
       if (data && (data.status !== lastStatus || data.updated_at !== lastUpdatedAt)) {
         console.log("Order updated via polling:", data)
         lastStatus = data.status
@@ -119,35 +120,33 @@ export default function AdminOrderDetails({ order: initialOrder, onBack, onUpdat
         setTimeout(() => setShowUpdateFlash(false), 2000)
         onUpdate()
       }
-    }, 15000) // Increased from 3s to 15s
+    }, 15000)
 
     // Real-time subscription (preferred)
     const channel = supabase
       .channel(`order-${order.id}`)
       .on(
         "postgres_changes",
-        { 
-          event: "UPDATE", 
-          schema: "public", 
+        {
+          event: "UPDATE",
+          schema: "public",
           table: "orders",
           filter: `id=eq.${order.id}`
         },
-          (payload) => {
-            console.log("Order updated in real-time:", payload);
-            if (payload.new) {
-              console.log("New row:", payload.new);
-              setOrder(payload.new as Order);
-            } else if (payload.record) {
-              console.log("Record row:", payload.record);
-              setOrder(payload.record as Order);
-            } else {
-              console.warn("No new/record data in payload:", payload);
-            }
-            setLastUpdated(new Date());
-            setShowUpdateFlash(true);
-            setTimeout(() => setShowUpdateFlash(false), 2000);
-            onUpdate();
+        (payload) => {
+          console.log("Order updated in real-time:", payload);
+          if (payload.new) {
+            setOrder(payload.new as Order);
+          } else if (payload.record) {
+            setOrder(payload.record as Order);
+          } else {
+            console.warn("No new/record data in payload:", payload);
           }
+          setLastUpdated(new Date());
+          setShowUpdateFlash(true);
+          setTimeout(() => setShowUpdateFlash(false), 2000);
+          onUpdate();
+        }
       )
       .subscribe((status) => {
         console.log(`Order ${order.id} subscription status:`, status)
@@ -162,7 +161,7 @@ export default function AdminOrderDetails({ order: initialOrder, onBack, onUpdat
       clearInterval(pollInterval)
       supabase.removeChannel(channel)
     }
-  }, [order.id, isRealtimeActive])
+  }, [order.id])
 
   // Manual refresh function - includes all fields including POD photo
   const handleRefresh = async () => {
