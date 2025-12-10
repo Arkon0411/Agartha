@@ -90,6 +90,7 @@ Ensure you have accounts for the following services:
 3.  **Authentication:** Go to *Authentication > Providers > Email* and **Disable "Confirm email"** (for faster testing).
 4.  **Security:** **Disable RLS** (Row Level Security) for all tables.
 5.  **Realtime:** Go to *Database > Replication* and **Enable Realtime** for the `orders` and `users` tables.
+6.  **Buckets:** create **delivery-photos** bucket at the storage tab.
 
 ### 3. PayRex Setup
 1.  Log in to your PayRex account.
