@@ -21,10 +21,12 @@ interface AdminOrderDetailsProps {
 }
 
 export default function AdminOrderDetails({ order: initialOrder, onBack, onUpdate }: AdminOrderDetailsProps) {
+
   const [order, setOrder] = useState<Order>(initialOrder)
   const [isLoading, setIsLoading] = useState(false)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [showUpdateFlash, setShowUpdateFlash] = useState(false)
+  const [riderDetails, setRiderDetails] = useState<{ full_name: string; phone: string } | null>(null)
   const supabase = createClient()
 
   // Track if realtime is working
@@ -34,6 +36,27 @@ export default function AdminOrderDetails({ order: initialOrder, onBack, onUpdat
   useEffect(() => {
     setOrder(initialOrder)
   }, [initialOrder])
+
+  // Fetch rider details when rider_id is present
+  useEffect(() => {
+    async function fetchRiderDetails() {
+      if (order.rider_id) {
+        const { data } = await supabase
+          .from('users')
+          .select('full_name,phone')
+          .eq('id', order.rider_id)
+          .single()
+        if (data) {
+          setRiderDetails({ full_name: data.full_name, phone: data.phone })
+        } else {
+          setRiderDetails(null)
+        }
+      } else {
+        setRiderDetails(null)
+      }
+    }
+    fetchRiderDetails()
+  }, [order.rider_id, supabase])
 
   // Define columns to select (exclude large fields like pod_photo_url for polling)
   const orderColumnsForPolling = `
@@ -482,6 +505,12 @@ export default function AdminOrderDetails({ order: initialOrder, onBack, onUpdat
               <h3 className="font-semibold text-[#2d2d2d] text-sm">Rider</h3>
             </div>
             <p className="text-xs text-[#6b6b6b]">ID: {order.rider_id}</p>
+            {riderDetails && (
+              <div className="mt-1 text-xs text-[#2d2d2d]">
+                <span className="font-medium">Name:</span> {riderDetails.full_name}<br />
+                <span className="font-medium">Phone:</span> {riderDetails.phone}
+              </div>
+            )}
             {order.accepted_at && (
               <p className="text-[10px] text-[#6b6b6b] mt-1">
                 Accepted: {new Date(order.accepted_at).toLocaleString()}

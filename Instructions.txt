@@ -2,7 +2,8 @@ Create Accounts for Vercel, Supabase, PayRex
 
 Create Supabase database, import database.sql
 Disable confirm email
-Disable RLS for orders, users, webauthn_credentials
+Disable RLS for tables
+enable Realtime for tables
 
 Create PayRex account
 create a static qrph and save for later (edit the image to only have the qr image)
