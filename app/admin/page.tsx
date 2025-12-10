@@ -9,12 +9,13 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { 
   Plus, LogOut, Package, Users, 
-  RefreshCw, MapPin, Clock, Truck, Loader2
+  RefreshCw, MapPin, Clock, Truck, Loader2, ChevronDown, ChevronUp, Camera
 } from "lucide-react"
 import type { Order, User } from "@/types"
 import AdminCreateOrder from "@/components/admin/create-order"
 import AdminOrderDetails from "@/components/admin/order-details"
 import { forceLogout } from "@/lib/utils/logout"
+import { OrderMap, LeafletCSS } from "@/components/maps/dynamic-maps"
 
 export default function AdminDashboard() {
   const router = useRouter()
@@ -25,6 +26,9 @@ export default function AdminDashboard() {
   const [showCreateOrder, setShowCreateOrder] = useState(false)
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
   const [mounted, setMounted] = useState(false)
+  const [expandedRider, setExpandedRider] = useState<string | null>(null)
+  const [riderOrders, setRiderOrders] = useState<Record<string, Order[]>>({})
+  const [loadingRiderOrders, setLoadingRiderOrders] = useState<Record<string, boolean>>({})
   const [stats, setStats] = useState({
     totalOrders: 0,
     pendingOrders: 0,
@@ -223,6 +227,57 @@ export default function AdminDashboard() {
 
     if (data) {
       setRiders(data as User[])
+    }
+  }
+
+  const fetchRiderOrders = async (riderId: string) => {
+    if (riderOrders[riderId]) {
+      // Already fetched, just toggle
+      return
+    }
+
+    setLoadingRiderOrders(prev => ({ ...prev, [riderId]: true }))
+
+    // Fetch completed orders for this rider (last 10)
+    const { data } = await supabase
+      .from("orders")
+      .select(`
+        id,
+        order_number,
+        package_description,
+        cod_amount,
+        barcode,
+        pickup_address,
+        pickup_latitude,
+        pickup_longitude,
+        delivery_address,
+        delivery_latitude,
+        delivery_longitude,
+        delivery_contact_name,
+        status,
+        payment_method,
+        pod_photo_url,
+        completed_at,
+        created_at
+      `)
+      .eq("rider_id", riderId)
+      .eq("status", "completed")
+      .order("completed_at", { ascending: false })
+      .limit(10)
+
+    if (data) {
+      setRiderOrders(prev => ({ ...prev, [riderId]: data as Order[] }))
+    }
+
+    setLoadingRiderOrders(prev => ({ ...prev, [riderId]: false }))
+  }
+
+  const handleRiderExpand = (riderId: string) => {
+    if (expandedRider === riderId) {
+      setExpandedRider(null)
+    } else {
+      setExpandedRider(riderId)
+      fetchRiderOrders(riderId)
     }
   }
 
@@ -514,30 +569,179 @@ export default function AdminDashboard() {
 
           <TabsContent value="riders">
             {riders.length === 0 ? (
-              <Card className="p-12 text-center">
-                <Users className="w-12 h-12 mx-auto text-slate-300 mb-4" />
-                <p className="text-slate-500">No riders registered</p>
+              <Card className="p-12 text-center bg-white border border-[#ff8303]/30">
+                <Users className="w-12 h-12 mx-auto text-[#ff8303] mb-4" />
+                <p className="text-[#6b6b6b]">No riders registered</p>
               </Card>
             ) : (
               <div className="space-y-3">
-                {riders.map((rider) => (
-                  <Card key={rider.id} className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-slate-200 rounded-full flex items-center justify-center">
-                          <Truck className="w-6 h-6 text-slate-500" />
-                        </div>
-                        <div>
-                          <p className="font-bold text-slate-900">{rider.full_name}</p>
-                          <p className="text-sm text-slate-500">{rider.email}</p>
+                {riders.map((rider) => {
+                  const isExpanded = expandedRider === rider.id
+                  const orders = riderOrders[rider.id] || []
+                  const isLoading = loadingRiderOrders[rider.id]
+
+                  return (
+                    <Card key={rider.id} className="bg-white border border-[#ff8303]/30">
+                      <div 
+                        className="p-4 cursor-pointer hover:bg-[#ff8303]/5 transition-colors"
+                        onClick={() => handleRiderExpand(rider.id)}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 bg-[#ff8303]/10 rounded-full flex items-center justify-center">
+                              <Truck className="w-6 h-6 text-[#fd5602]" />
+                            </div>
+                            <div>
+                              <p className="font-bold text-[#2d2d2d]">{rider.full_name}</p>
+                              <p className="text-sm text-[#6b6b6b]">{rider.email}</p>
+                              {rider.phone && (
+                                <p className="text-xs text-[#6b6b6b]">{rider.phone}</p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge className={rider.is_active ? "bg-green-100 text-green-800" : "bg-slate-100 text-slate-800"}>
+                              {rider.is_active ? "Active" : "Inactive"}
+                            </Badge>
+                            {isExpanded ? (
+                              <ChevronUp className="w-5 h-5 text-[#6b6b6b]" />
+                            ) : (
+                              <ChevronDown className="w-5 h-5 text-[#6b6b6b]" />
+                            )}
+                          </div>
                         </div>
                       </div>
-                      <Badge className={rider.is_active ? "bg-green-100 text-green-800" : "bg-slate-100 text-slate-800"}>
-                        {rider.is_active ? "Active" : "Inactive"}
-                      </Badge>
-                    </div>
-                  </Card>
-                ))}
+
+                      {isExpanded && (
+                        <div className="border-t border-[#ff8303]/30 p-4 space-y-4">
+                          {isLoading ? (
+                            <div className="flex items-center justify-center py-8">
+                              <Loader2 className="w-6 h-6 animate-spin text-[#fd5602]" />
+                              <span className="ml-2 text-[#6b6b6b]">Loading orders...</span>
+                            </div>
+                          ) : orders.length === 0 ? (
+                            <div className="text-center py-8">
+                              <Package className="w-12 h-12 mx-auto text-[#ff8303]/30 mb-2" />
+                              <p className="text-[#6b6b6b] text-sm">No completed orders</p>
+                            </div>
+                          ) : (
+                            <div className="space-y-3">
+                              <p className="text-xs font-semibold text-[#6b6b6b] uppercase tracking-wide">
+                                Recent Completed Orders ({orders.length})
+                              </p>
+                              {orders.map((order) => (
+                                <Card 
+                                  key={order.id}
+                                  className="p-4 bg-[#fffdf9] border border-[#ff8303]/20 hover:border-[#fd5602]/50 transition-colors cursor-pointer"
+                                  onClick={() => setSelectedOrder(order)}
+                                >
+                                  <div className="space-y-3">
+                                    {/* Order Header */}
+                                    <div className="flex items-start justify-between">
+                                      <div>
+                                        <h4 className="font-bold text-[#2d2d2d] text-sm">{order.order_number}</h4>
+                                        {order.package_description && (
+                                          <p className="text-xs text-[#6b6b6b] mt-0.5">{order.package_description}</p>
+                                        )}
+                                      </div>
+                                      <div className="text-right">
+                                        <p className="text-[10px] text-[#6b6b6b]">Amount</p>
+                                        <p className="text-lg font-bold text-[#fd5602]">₱{order.cod_amount.toLocaleString()}</p>
+                                      </div>
+                                    </div>
+
+                                    {/* Map */}
+                                    {order.pickup_latitude && order.pickup_longitude && 
+                                     order.delivery_latitude && order.delivery_longitude && (
+                                      <div className="rounded-lg overflow-hidden">
+                                        <LeafletCSS />
+                                        <OrderMap
+                                          pickupLat={order.pickup_latitude}
+                                          pickupLng={order.pickup_longitude}
+                                          pickupAddress={order.pickup_address}
+                                          deliveryLat={order.delivery_latitude}
+                                          deliveryLng={order.delivery_longitude}
+                                          deliveryAddress={order.delivery_address}
+                                          showRoute={true}
+                                          height="150px"
+                                        />
+                                      </div>
+                                    )}
+
+                                    {/* Addresses */}
+                                    <div className="space-y-2">
+                                      <div className="flex items-start gap-2">
+                                        <MapPin className="w-3 h-3 text-green-600 mt-0.5 flex-shrink-0" />
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-[10px] text-[#6b6b6b]">From</p>
+                                          <p className="text-xs text-[#2d2d2d] break-words line-clamp-1">{order.pickup_address}</p>
+                                        </div>
+                                      </div>
+                                      <div className="flex items-start gap-2">
+                                        <MapPin className="w-3 h-3 text-red-500 mt-0.5 flex-shrink-0" />
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-[10px] text-[#6b6b6b]">To</p>
+                                          <p className="text-xs text-[#2d2d2d] break-words line-clamp-1">{order.delivery_address}</p>
+                                          {order.delivery_contact_name && (
+                                            <p className="text-[10px] text-[#6b6b6b] mt-0.5">📞 {order.delivery_contact_name}</p>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    {/* Proof of Delivery Photo */}
+                                    {order.pod_photo_url && (
+                                      <div className="pt-2 border-t border-[#ff8303]/20">
+                                        <div className="flex items-center gap-2 mb-2">
+                                          <Camera className="w-3.5 h-3.5 text-[#fd5602]" />
+                                          <p className="text-[10px] font-medium text-[#6b6b6b] uppercase tracking-wide">Proof of Delivery</p>
+                                        </div>
+                                        <div className="rounded-lg overflow-hidden border border-[#ff8303]/20">
+                                          <img 
+                                            src={order.pod_photo_url} 
+                                            alt={`POD for ${order.order_number}`}
+                                            className="w-full h-32 object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                                            onClick={(e) => {
+                                              e.stopPropagation()
+                                              window.open(order.pod_photo_url!, '_blank')
+                                            }}
+                                          />
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {/* Footer Info */}
+                                    <div className="flex items-center justify-between pt-2 border-t border-[#ff8303]/20">
+                                      <div className="flex items-center gap-3 text-[10px] text-[#6b6b6b]">
+                                        <span className="flex items-center gap-1">
+                                          <Clock className="w-3 h-3" />
+                                          {order.completed_at 
+                                            ? new Date(order.completed_at).toLocaleDateString()
+                                            : "N/A"}
+                                        </span>
+                                        {order.payment_method && (
+                                          <Badge className="bg-[#fd5602]/10 text-[#fd5602] border border-[#fd5602]/30 text-[10px]">
+                                            {order.payment_method.toUpperCase()}
+                                          </Badge>
+                                        )}
+                                        {order.pod_photo_url && (
+                                          <span className="flex items-center gap-1 text-green-600">
+                                            <Camera className="w-3 h-3" />
+                                            POD
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </Card>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </Card>
+                  )
+                })}
               </div>
             )}
           </TabsContent>
