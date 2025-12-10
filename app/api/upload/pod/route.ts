@@ -15,6 +15,16 @@ export async function POST(request: NextRequest) {
 
     const supabase = await createClient()
 
+    // Verify user is authenticated
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: "Unauthorized: Authentication required" },
+        { status: 401 }
+      )
+    }
+
     // Extract base64 data (remove data URL prefix if present)
     const base64Data = photoBase64.replace(/^data:image\/\w+;base64,/, "")
     const buffer = Buffer.from(base64Data, "base64")

@@ -73,8 +73,17 @@ CREATE TABLE IF NOT EXISTS public.orders (
   cash_audit_note TEXT,
   
   -- PayRex reference for QRPH payments
-  payrex_reference TEXT,
-  payrex_checkout_url TEXT,
+  -- Note: DECIMAL(10, 2) allows values up to 99,999,999.99 (₱99.9M)
+  -- Using DECIMAL(10, 8) would limit to 99.99 which is too small for payment amounts
+  amount_paid DECIMAL(10, 2),
+  payment_error TEXT,
+  last_webhook_event_id TEXT,
+  
+  -- Maps Integration
+  pickup_latitude DECIMAL(10, 8),
+  pickup_longitude DECIMAL(11, 8),
+  delivery_latitude DECIMAL(10, 8),
+  delivery_longitude DECIMAL(11, 8),
   
   -- Timestamps
   created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -104,6 +113,7 @@ CREATE TABLE IF NOT EXISTS public.rider_settlements (
   rider_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
   date DATE NOT NULL,
   amount DECIMAL(10, 2) NOT NULL,
+  -- Note: DECIMAL(10, 2) for amounts up to ₱99.9M
   amount_paid DECIMAL(10, 2) DEFAULT 0,
   payment_reference TEXT,
   payrex_checkout_url TEXT,
@@ -111,6 +121,7 @@ CREATE TABLE IF NOT EXISTS public.rider_settlements (
   settled_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
+  initiated_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(rider_id, date)
 );
 
@@ -137,6 +148,7 @@ CREATE INDEX IF NOT EXISTS idx_orders_status ON public.orders(status);
 CREATE INDEX IF NOT EXISTS idx_orders_rider_id ON public.orders(rider_id);
 CREATE INDEX IF NOT EXISTS idx_orders_created_at ON public.orders(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_orders_barcode ON public.orders(barcode);
+CREATE INDEX IF NOT EXISTS idx_orders_last_webhook_event_id ON public.orders(last_webhook_event_id) WHERE last_webhook_event_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_users_role ON public.users(role);
 CREATE INDEX IF NOT EXISTS idx_payment_transactions_order_id ON public.payment_transactions(order_id);
 CREATE INDEX IF NOT EXISTS idx_rider_settlements_rider_id ON public.rider_settlements(rider_id);
@@ -183,9 +195,15 @@ CREATE POLICY "Riders can view pending orders" ON public.orders
 CREATE POLICY "Riders can update assigned orders" ON public.orders
   FOR UPDATE USING (rider_id = auth.uid());
 
--- Orders: Admins can do everything with orders
+-- Orders: Admins can do everything with orders (SELECT, INSERT, UPDATE, DELETE)
 CREATE POLICY "Admins full access to orders" ON public.orders
   FOR ALL USING (
+    EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'admin')
+  );
+
+-- Orders: Admins can insert orders
+CREATE POLICY "Admins can insert orders" ON public.orders
+  FOR INSERT WITH CHECK (
     EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'admin')
   );
 
@@ -195,11 +213,16 @@ CREATE POLICY "Riders can view order payments" ON public.payment_transactions
     EXISTS (SELECT 1 FROM public.orders WHERE id = order_id AND rider_id = auth.uid())
   );
 
--- Payment transactions: Admins can do everything
+-- Payment transactions: Admins can do everything (SELECT, INSERT, UPDATE, DELETE)
 CREATE POLICY "Admins full access to payments" ON public.payment_transactions
   FOR ALL USING (
     EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'admin')
   );
+
+-- Payment transactions: Allow inserts for webhook handlers (authenticated users)
+-- This allows server-side operations via service role or authenticated requests
+CREATE POLICY "Authenticated users can insert payment transactions" ON public.payment_transactions
+  FOR INSERT WITH CHECK (auth.role() = 'authenticated');
 
 -- ============================================
 -- RIDER SETTLEMENTS POLICIES
@@ -266,6 +289,12 @@ CREATE TRIGGER update_orders_updated_at
 DROP TRIGGER IF EXISTS update_users_updated_at ON public.users;
 CREATE TRIGGER update_users_updated_at
   BEFORE UPDATE ON public.users
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Trigger for rider_settlements
+DROP TRIGGER IF EXISTS update_rider_settlements_updated_at ON public.rider_settlements;
+CREATE TRIGGER update_rider_settlements_updated_at
+  BEFORE UPDATE ON public.rider_settlements
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- Function to generate order number

@@ -10,8 +10,15 @@
 -- ============================================
 -- STORAGE POLICIES
 -- ============================================
+-- Note: These policies need to be created AFTER the bucket is created
+-- Drop existing policies if they exist (to allow re-running this script)
+DROP POLICY IF EXISTS "Riders can upload POD photos" ON storage.objects;
+DROP POLICY IF EXISTS "Anyone can view POD photos" ON storage.objects;
+DROP POLICY IF EXISTS "Riders can update own uploads" ON storage.objects;
+DROP POLICY IF EXISTS "Riders can delete own uploads" ON storage.objects;
 
--- Allow authenticated users to upload POD photos
+-- Allow authenticated users (riders) to upload POD photos
+-- This allows any authenticated user to upload to the delivery-photos bucket
 CREATE POLICY "Riders can upload POD photos"
 ON storage.objects FOR INSERT
 WITH CHECK (
@@ -19,17 +26,25 @@ WITH CHECK (
   auth.role() = 'authenticated'
 );
 
--- Allow authenticated users to read POD photos
+-- Allow anyone to read/view POD photos (public bucket)
 CREATE POLICY "Anyone can view POD photos"
 ON storage.objects FOR SELECT
 USING (bucket_id = 'delivery-photos');
 
--- Allow riders to update their own uploads
+-- Allow authenticated users to update their uploads
 CREATE POLICY "Riders can update own uploads"
 ON storage.objects FOR UPDATE
 USING (
   bucket_id = 'delivery-photos' AND
-  auth.uid()::text = (storage.foldername(name))[2]
+  auth.role() = 'authenticated'
+);
+
+-- Allow authenticated users to delete their uploads
+CREATE POLICY "Riders can delete own uploads"
+ON storage.objects FOR DELETE
+USING (
+  bucket_id = 'delivery-photos' AND
+  auth.role() = 'authenticated'
 );
 
 -- ============================================

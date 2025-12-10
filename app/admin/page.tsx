@@ -183,6 +183,8 @@ export default function AdminDashboard() {
         order_number,
         package_description,
         cod_amount,
+        barcode,
+        barcode_image_url,
         pickup_address,
         delivery_address,
         delivery_contact_name,
@@ -456,6 +458,13 @@ export default function AdminDashboard() {
                           <div className="inline-flex items-start gap-1.5 text-xs text-[#6b6b6b] bg-[#ff8303]/20 px-2 py-1 rounded mb-2 max-w-fit">
                             <Package className="w-3 h-3 text-[#fd5602] flex-shrink-0 mt-0.5" />
                             <span className="break-words">{order.package_description}</span>
+                          </div>
+                        )}
+
+                        {order.barcode && (
+                          <div className="inline-flex items-center gap-1.5 text-xs text-[#6b6b6b] bg-[#fd5602]/10 px-2 py-1 rounded mb-2 max-w-fit">
+                            <Package className="w-3 h-3 text-[#fd5602] flex-shrink-0" />
+                            <span className="font-mono text-[10px]">{order.barcode}</span>
                           </div>
                         )}
 

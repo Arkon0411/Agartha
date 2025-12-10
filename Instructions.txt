@@ -1,0 +1,41 @@
+Create Accounts for Vercel, Supabase, PayRex
+
+Create Supabase database, import database.sql
+Disable confirm email
+Disable RLS for orders, users, webauthn_credentials
+
+Create PayRex account
+create a static qrph and save for later (edit the image to only have the qr image)
+
+Fork or Clone this Repository
+Select your new repository at your vercel account, select Next.js framework
+
+add the vercel .env
+NEXT_PUBLIC_SUPABASE_URL=[Supabase URL / Import .sql]
+NEXT_PUBLIC_SUPABASE_ANON_KEY=[Anon API Key]
+PAYREX_API_KEY=[Payrex Account API Key]
+STATIC_QRPH_IMAGE_URL=/static-qrph.png (put your QRPH Static QR at /public)
+
+Once the domain is generated, add the corresponding settings in the vercel .env
+NEXT_PUBLIC_WEBAUTHN_RP_ID=[Website Domain (without HTTPS)]
+NEXT_PUBLIC_APP_URL=[Website Domain (with HTTPS://)]
+add webhook to payrex
+(Your Domain with HTTPS://)/api/webhooks/payrex
+check payment_intent.succeeded
+
+Register for admin@agartha.ph, rider@agartha.ph using the Register Button at the bottom (you can choose to add biometrics for testing or skip)
+
+-- After creating users in Auth, update their roles here:
+UPDATE public.users 
+SET role = 'admin', full_name = 'Admin User'
+WHERE email = 'admin@agartha.ph';
+-- Set admin role (replace 'admin@agartha.ph' with your admin email)
+	
+
+-- Set rider role (replace 'rider@agartha.ph' with your rider email)
+UPDATE public.users 
+SET role = 'rider', full_name = 'Juan Rider', phone = '09171234567'
+WHERE email = 'rider@agartha.ph';
+
+
+
