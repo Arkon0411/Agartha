@@ -1,10 +1,11 @@
-"use client"
+﻿"use client"
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import RiderDashboard from "@/components/rider-dashboard"
-import { Loader2, Package } from "lucide-react"
+import { Loader2 } from "lucide-react"
+import type { AuthChangeEvent, PostgrestSingleResponse } from "@supabase/supabase-js"
 import type { User } from "@/types"
 
 export default function Home() {
@@ -14,12 +15,37 @@ export default function Home() {
   const [mounted, setMounted] = useState(false)
 
   const supabase = createClient()
+  const profileSelect = "id, email, full_name, phone, role, is_active, avatar_url, birthdate, address, created_at"
+  const baseProfileSelect = "id, email, full_name, phone, role, is_active, created_at"
+
+  const fetchUserProfile = async (userId: string): Promise<PostgrestSingleResponse<User>> => {
+    const result = await supabase
+      .from("users")
+      .select(profileSelect)
+      .eq("id", userId)
+      .single()
+
+    if (!result.error) return result as PostgrestSingleResponse<User>
+
+    const missingProfileColumn =
+      result.error.message.includes("avatar_url") ||
+      result.error.message.includes("birthdate") ||
+      result.error.message.includes("address")
+
+    if (!missingProfileColumn) return result as PostgrestSingleResponse<User>
+
+    return supabase
+      .from("users")
+      .select(baseProfileSelect)
+      .eq("id", userId)
+      .single() as Promise<PostgrestSingleResponse<User>>
+  }
 
   useEffect(() => {
     setMounted(true)
     checkAuth()
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event: AuthChangeEvent) => {
       if (event === "SIGNED_OUT") {
         router.push("/login")
       }
@@ -43,11 +69,7 @@ export default function Home() {
             // Check if session is still valid (not expired)
             if (biometricSession.verified && biometricSession.expiresAt > Date.now()) {
               // Fetch fresh user data from database
-              const { data: userData, error } = await supabase
-                .from("users")
-                .select("id, email, full_name, phone, role, is_active")
-                .eq("id", biometricSession.user.id)
-                .single()
+              const { data: userData, error } = await fetchUserProfile(biometricSession.user.id)
 
               if (!error && userData) {
                 // Redirect admin to admin panel
@@ -55,7 +77,7 @@ export default function Home() {
                   router.push("/admin")
                   return
                 }
-                setUser(userData as User)
+                setUser(userData)
                 setIsLoading(false)
                 return
               }
@@ -72,11 +94,7 @@ export default function Home() {
       }
 
       // Fetch user profile
-      const { data: userData, error } = await supabase
-        .from("users")
-        .select("id, email, full_name, phone, role, is_active")
-        .eq("id", authUser.id)
-        .single()
+      const { data: userData, error } = await fetchUserProfile(authUser.id)
 
       if (error || !userData) { 
         // User exists in auth but not in users table - create profile
@@ -86,10 +104,14 @@ export default function Home() {
             id: authUser.id,
             email: authUser.email!,
             full_name: authUser.user_metadata?.full_name || authUser.email?.split("@")[0] || "Rider",
+            phone: authUser.phone || null,
+            avatar_url: null,
+            birthdate: null,
+            address: null,
             role: "rider",
             is_active: true,
           })
-          .select()
+          .select(profileSelect)
           .single()
 
         if (!insertError && newUser) {
@@ -105,7 +127,7 @@ export default function Home() {
         return
       }
 
-      setUser(userData as User)
+      setUser(userData)
       setIsLoading(false)
     } catch (err) {
       console.error("Auth check error:", err)
@@ -138,7 +160,7 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-background">
-      <RiderDashboard user={user} />
+      <RiderDashboard user={user} onUserUpdate={setUser} />
     </main>
   )
 }

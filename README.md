@@ -22,9 +22,9 @@ This application was built in **less than 24 hours** during the **Build and Ship
 *   **Framework:** [Next.js 16](https://nextjs.org/) (App Router)
 *   **Database & Realtime:** [Supabase](https://supabase.com/) (PostgreSQL)
 *   **Payments:** [PayRex API](https://developers.payrex.ph/) (QRPH Integration)
-*   **Styling:** [Tailwind CSS](https://tailwindcss.com/) & [shadcn/ui](https://ui.shadcn.com/)
+*   **Styling:** [Tailwind CSS](https://tailwindcss.com/) & [shadcn/ui](https://ui.shadcn.com/ for the base)
 *   **Deployment:** [Vercel](https://vercel.com/)
-*   **Utilities:** `bwip-js` (Barcode generation), `html5-qrcode` (Scanner)
+*   **Utilities:** `bwip-js` (Barcode Generation), `html5-qrcode` (Scanner), `leaflet` (Maps Integration), `webauthn` (Biometrics Integration) 
 
 ---
 

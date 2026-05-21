@@ -75,7 +75,10 @@ export interface User {
   id: string
   email: string
   full_name: string
-  phone: string
+  phone: string | null
+  avatar_url?: string | null
+  birthdate?: string | null
+  address?: string | null
   role: UserRole
   is_active: boolean
   created_at: string

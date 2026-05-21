@@ -3,18 +3,21 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import OrderQueueScreen from "./order-queue-screen"
 import DeliveryFlowScreen from "./delivery-flow-screen"
 import RiderSettlementDashboard from "./rider-settlement-dashboard"
+import RiderHistoryScreen from "./rider-history-screen"
+import RiderProfileScreen from "./rider-profile-screen"
+import RiderStatsCards from "./rider-stats-cards"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { LogOut, Truck, Package, BarChart3, WifiOff, Wifi, CloudOff, RefreshCw } from "lucide-react"
+import { LogOut, Package, BarChart3, WifiOff, CloudOff, RefreshCw, Home, History, UserCircle, ChevronRight } from "lucide-react"
 import type { Order, User } from "@/types"
 import { forceLogout } from "@/lib/utils/logout"
 
 interface RiderDashboardProps {
   user: User
+  onUserUpdate?: (user: User) => void
 }
 
 // Offline queue storage key
@@ -24,14 +27,28 @@ interface QueuedAction {
   id: string
   type: "update_order"
   orderId: string
-  data: Record<string, any>
+  data: Record<string, unknown>
   timestamp: number
 }
 
-export default function RiderDashboard({ user }: RiderDashboardProps) {
+type RiderTab = "home" | "orders" | "history" | "earnings" | "profile"
+
+const navItems: Array<{
+  value: RiderTab
+  label: string
+  icon: typeof Home
+}> = [
+  { value: "home", label: "Home", icon: Home },
+  { value: "orders", label: "Orders", icon: Package },
+  { value: "history", label: "History", icon: History },
+  { value: "earnings", label: "Earnings", icon: BarChart3 },
+  { value: "profile", label: "Profile", icon: UserCircle },
+]
+
+export default function RiderDashboard({ user, onUserUpdate }: RiderDashboardProps) {
   const router = useRouter()
   const [activeOrder, setActiveOrder] = useState<Order | null>(null)
-  const [activeTab, setActiveTab] = useState("queue")
+  const [activeTab, setActiveTab] = useState<RiderTab>("home")
   const [isOnline, setIsOnline] = useState(true)
   const [offlineQueue, setOfflineQueue] = useState<QueuedAction[]>([])
   const [isSyncing, setIsSyncing] = useState(false)
@@ -126,7 +143,6 @@ export default function RiderDashboard({ user }: RiderDashboardProps) {
 
   const handleSelectOrder = (order: Order) => {
     setActiveOrder(order)
-    setActiveTab("delivery")
   }
 
   const handleDeliveryComplete = () => {
@@ -134,15 +150,93 @@ export default function RiderDashboard({ user }: RiderDashboardProps) {
     setActiveOrder(null)
     // Small delay to ensure DeliveryFlowScreen unmounts cleanly before tab switch
     setTimeout(() => {
-      setActiveTab("queue")
+      setActiveTab("orders")
     }, 50)
   }
 
+  const displayName = user.full_name || user.email
+
+  const renderActivePane = () => {
+    if (activeTab === "orders") {
+      return <OrderQueueScreen riderId={user.id} onSelectOrder={handleSelectOrder} />
+    }
+
+    if (activeTab === "history") {
+      return <RiderHistoryScreen riderId={user.id} />
+    }
+
+    if (activeTab === "earnings") {
+      return <RiderSettlementDashboard riderId={user.id} />
+    }
+
+    if (activeTab === "profile") {
+      return <RiderProfileScreen user={user} onUserUpdate={onUserUpdate} />
+    }
+
+    return (
+      <div className="space-y-4">
+        <Card className="p-5 bg-[#fd5602] text-white border-0 overflow-hidden relative">
+          <div className="absolute -right-8 -top-8 w-28 h-28 rounded-full bg-white/10" />
+          <div className="absolute right-8 bottom-4 w-14 h-14 rounded-full bg-[#ff8303]/40" />
+          <div className="relative">
+            <p className="text-white/80 text-xs font-semibold tracking-wide">RIDER HOME</p>
+            <h2 className="text-2xl font-black mt-1">Welcome, {displayName}</h2>
+            <p className="text-white/80 text-sm mt-2">Your next delivery starts from here.</p>
+          </div>
+        </Card>
+
+        <div className="grid grid-cols-2 gap-3">
+          <Card
+            className="p-4 bg-white border border-[#ff8303]/30 cursor-pointer card-interactive transition-all"
+            onClick={() => setActiveTab("orders")}
+          >
+            <div className="w-10 h-10 bg-[#ff8303]/20 rounded-xl flex items-center justify-center mb-3">
+              <Package className="w-5 h-5 text-[#fd5602]" />
+            </div>
+            <p className="text-[#2d2d2d] font-bold">Orders</p>
+            <p className="text-[#6b6b6b] text-xs mt-1">Accept next delivery</p>
+          </Card>
+
+          <Card
+            className="p-4 bg-white border border-[#ff8303]/30 cursor-pointer card-interactive transition-all"
+            onClick={() => setActiveTab("earnings")}
+          >
+            <div className="w-10 h-10 bg-[#ff8303]/20 rounded-xl flex items-center justify-center mb-3">
+              <BarChart3 className="w-5 h-5 text-[#fd5602]" />
+            </div>
+            <p className="text-[#2d2d2d] font-bold">Earnings</p>
+            <p className="text-[#6b6b6b] text-xs mt-1">Track collections</p>
+          </Card>
+        </div>
+
+        <RiderStatsCards riderId={user.id} />
+
+        <Card
+          className="p-4 bg-white border border-[#ff8303]/30 cursor-pointer"
+          onClick={() => setActiveTab("history")}
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 bg-[#ff8303]/20 rounded-xl flex items-center justify-center">
+                <History className="w-5 h-5 text-[#fd5602]" />
+              </div>
+              <div>
+                <p className="text-[#2d2d2d] font-bold">Delivery history</p>
+                <p className="text-[#6b6b6b] text-xs">Review completed and failed orders</p>
+              </div>
+            </div>
+            <ChevronRight className="w-5 h-5 text-[#fd5602]" />
+          </div>
+        </Card>
+      </div>
+    )
+  }
+
   return (
-    <div className="min-h-screen bg-[#fffdf9]">
+    <div className="min-h-screen bg-[#fffdf9] min-w-0">
       {/* Header - Minimalist */}
       <header className="bg-white border-b border-[#ff8303]/30 sticky top-0 z-40">
-        <div className="max-w-lg mx-auto px-4 py-3 flex items-center justify-between">
+        <div className="w-full max-w-lg mx-auto px-4 py-3 flex items-center justify-between min-w-0">
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-xl flex items-center justify-center">
               <img src="/AGARTHA.svg" alt="Agartha" className="w-11 h-11 object-contain" />
@@ -196,39 +290,9 @@ export default function RiderDashboard({ user }: RiderDashboardProps) {
       )}
 
       {/* Main Content */}
-      <div className="max-w-lg mx-auto px-4 py-4">
-        {/* Show tabs only when NOT in active delivery */}
+      <div className={`w-full max-w-lg mx-auto px-4 py-4 min-w-0 ${!activeOrder ? "pb-28" : ""}`}>
         {!activeOrder ? (
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            {/* Only 2 tabs: Orders and Earnings */}
-            <TabsList className="grid w-full grid-cols-2 h-12 bg-white border border-[#ff8303]/50 rounded-xl p-1">
-              <TabsTrigger 
-                value="queue" 
-                className="gap-2 text-sm font-medium rounded-lg data-[state=active]:bg-[#fd5602] data-[state=active]:text-white data-[state=inactive]:text-[#6b6b6b]"
-              >
-                <Package className="w-4 h-4" />
-                Orders
-              </TabsTrigger>
-              <TabsTrigger 
-                value="settlement" 
-                className="gap-2 text-sm font-medium rounded-lg data-[state=active]:bg-[#fd5602] data-[state=active]:text-white data-[state=inactive]:text-[#6b6b6b]"
-              >
-                <BarChart3 className="w-4 h-4" />
-                Earnings
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="queue" className="mt-4">
-              <OrderQueueScreen 
-                riderId={user.id} 
-                onSelectOrder={handleSelectOrder} 
-              />
-            </TabsContent>
-
-            <TabsContent value="settlement" className="mt-4">
-              <RiderSettlementDashboard riderId={user.id} />
-            </TabsContent>
-          </Tabs>
+          <div className="w-full max-w-lg mx-auto min-w-0">{renderActivePane()}</div>
         ) : (
           /* Delivery Flow - No tabs, full screen */
           <DeliveryFlowScreen 
@@ -236,7 +300,7 @@ export default function RiderDashboard({ user }: RiderDashboardProps) {
             order={activeOrder}
             onBack={() => {
               setActiveOrder(null)
-              setActiveTab("queue")
+              setActiveTab("orders")
             }}
             onComplete={handleDeliveryComplete}
             isOnline={isOnline}
@@ -244,6 +308,33 @@ export default function RiderDashboard({ user }: RiderDashboardProps) {
           />
         )}
       </div>
+
+      {!activeOrder && (
+        <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-[#ff8303]/30 safe-area-bottom shadow-[0_-8px_24px_rgba(45,45,45,0.08)]">
+          <div className="w-full max-w-lg mx-auto grid grid-cols-5 px-2 py-2 min-w-0">
+            {navItems.map((item) => {
+              const Icon = item.icon
+              const isActive = activeTab === item.value
+
+              return (
+                <button
+                  key={item.value}
+                  type="button"
+                  onClick={() => setActiveTab(item.value)}
+                  className={`touch-target flex flex-col items-center justify-center gap-1 rounded-xl text-[10px] font-semibold transition-colors ${
+                    isActive
+                      ? "bg-[#fd5602] text-white"
+                      : "text-[#6b6b6b] hover:bg-[#ff8303]/20 hover:text-[#2d2d2d]"
+                  }`}
+                >
+                  <Icon className="w-5 h-5" />
+                  {item.label}
+                </button>
+              )
+            })}
+          </div>
+        </nav>
+      )}
     </div>
   )
 }

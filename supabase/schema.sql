@@ -14,6 +14,9 @@ CREATE TABLE IF NOT EXISTS public.users (
   email TEXT UNIQUE NOT NULL,
   full_name TEXT NOT NULL,
   phone TEXT,
+  avatar_url TEXT,
+  birthdate DATE,
+  address TEXT,
   role TEXT NOT NULL DEFAULT 'rider' CHECK (role IN ('admin', 'rider')),
   is_active BOOLEAN DEFAULT true,
   -- Rider-specific fields
@@ -171,7 +174,8 @@ CREATE POLICY "Users can view own profile" ON public.users
 
 -- Users can update their own profile
 CREATE POLICY "Users can update own profile" ON public.users
-  FOR UPDATE USING (auth.uid() = id);
+  FOR UPDATE USING (auth.uid() = id)
+  WITH CHECK (auth.uid() = id);
 
 -- Admins can view all users
 CREATE POLICY "Admins can view all users" ON public.users
@@ -194,6 +198,18 @@ CREATE POLICY "Riders can view pending orders" ON public.orders
 -- Orders: Riders can update their assigned orders
 CREATE POLICY "Riders can update assigned orders" ON public.orders
   FOR UPDATE USING (rider_id = auth.uid());
+
+-- Orders: Riders can accept pending unassigned orders
+CREATE POLICY "Riders can accept pending unassigned orders" ON public.orders
+  FOR UPDATE USING (
+    status = 'pending'
+    AND rider_id IS NULL
+    AND EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'rider')
+  )
+  WITH CHECK (
+    rider_id = auth.uid()
+    AND status = 'accepted'
+  );
 
 -- Orders: Admins can do everything with orders (SELECT, INSERT, UPDATE, DELETE)
 CREATE POLICY "Admins full access to orders" ON public.orders
@@ -265,6 +281,55 @@ CREATE POLICY "Users can update own credentials" ON public.webauthn_credentials
 -- Users can delete their own credentials
 CREATE POLICY "Users can delete own credentials" ON public.webauthn_credentials
   FOR DELETE USING (user_id = auth.uid());
+
+-- ============================================
+-- STORAGE BUCKETS AND POLICIES
+-- ============================================
+
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'rider-avatars',
+  'rider-avatars',
+  true,
+  5242880,
+  ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+)
+ON CONFLICT (id) DO UPDATE SET
+  public = EXCLUDED.public,
+  file_size_limit = EXCLUDED.file_size_limit,
+  allowed_mime_types = EXCLUDED.allowed_mime_types;
+
+DROP POLICY IF EXISTS "Public can view rider avatars" ON storage.objects;
+CREATE POLICY "Public can view rider avatars" ON storage.objects
+  FOR SELECT USING (bucket_id = 'rider-avatars');
+
+DROP POLICY IF EXISTS "Riders can upload own avatar" ON storage.objects;
+CREATE POLICY "Riders can upload own avatar" ON storage.objects
+  FOR INSERT TO authenticated
+  WITH CHECK (
+    bucket_id = 'rider-avatars'
+    AND (storage.foldername(name))[1] = (auth.uid())::text
+  );
+
+DROP POLICY IF EXISTS "Riders can update own avatar" ON storage.objects;
+CREATE POLICY "Riders can update own avatar" ON storage.objects
+  FOR UPDATE TO authenticated
+  USING (
+    bucket_id = 'rider-avatars'
+    AND (storage.foldername(name))[1] = (auth.uid())::text
+  )
+  WITH CHECK (
+    bucket_id = 'rider-avatars'
+    AND (storage.foldername(name))[1] = (auth.uid())::text
+  );
+
+DROP POLICY IF EXISTS "Riders can delete own avatar" ON storage.objects;
+CREATE POLICY "Riders can delete own avatar" ON storage.objects
+  FOR DELETE TO authenticated
+  USING (
+    bucket_id = 'rider-avatars'
+    AND (storage.foldername(name))[1] = (auth.uid())::text
+  );
 
 -- ============================================
 -- FUNCTIONS

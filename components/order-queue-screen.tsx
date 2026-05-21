@@ -19,6 +19,7 @@ export default function OrderQueueScreen({ riderId, onSelectOrder }: OrderQueueS
   const [completedOrders, setCompletedOrders] = useState<Order[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [acceptingOrderId, setAcceptingOrderId] = useState<string | null>(null)
+  const [orderToConfirm, setOrderToConfirm] = useState<Order | null>(null)
 
   const supabase = createClient()
 
@@ -37,9 +38,13 @@ export default function OrderQueueScreen({ riderId, onSelectOrder }: OrderQueueS
       cod_amount,
       barcode,
       pickup_address,
+      pickup_latitude,
+      pickup_longitude,
       pickup_contact_name,
       pickup_contact_phone,
       delivery_address,
+      delivery_latitude,
+      delivery_longitude,
       delivery_contact_name,
       delivery_contact_phone,
       status,
@@ -92,7 +97,10 @@ export default function OrderQueueScreen({ riderId, onSelectOrder }: OrderQueueS
     setIsLoading(false)
   }
 
-  const handleAcceptOrder = async (order: Order) => {
+  const handleAcceptOrder = async () => {
+    if (!orderToConfirm) return
+
+    const order = orderToConfirm
     setAcceptingOrderId(order.id)
 
     const { error } = await supabase
@@ -109,6 +117,7 @@ export default function OrderQueueScreen({ riderId, onSelectOrder }: OrderQueueS
     if (!error) {
       // Immediately select the order to start delivery
       const updatedOrder = { ...order, rider_id: riderId, status: "accepted" as const }
+      setOrderToConfirm(null)
       onSelectOrder(updatedOrder)
     }
 
@@ -285,7 +294,7 @@ export default function OrderQueueScreen({ riderId, onSelectOrder }: OrderQueueS
                 </div>
 
                 <Button
-                  onClick={() => handleAcceptOrder(order)}
+                  onClick={() => setOrderToConfirm(order)}
                   disabled={acceptingOrderId === order.id}
                   className="w-full h-16 text-lg font-semibold bg-[#fd5602] hover:bg-[#e54d00] text-white"
                 >
@@ -300,6 +309,61 @@ export default function OrderQueueScreen({ riderId, onSelectOrder }: OrderQueueS
           </div>
         )}
       </div>
+
+      {orderToConfirm && (
+        <div className="fixed inset-0 z-50 bg-[#2d2d2d]/60 flex items-end sm:items-center justify-center p-4">
+          <Card className="w-full max-w-md p-5 bg-white border border-[#ff8303]/30 shadow-2xl">
+            <div className="space-y-4">
+              <div>
+                <p className="text-xs font-semibold text-[#fd5602] tracking-wide">CONFIRM ACCEPTANCE</p>
+                <h3 className="text-xl font-black text-[#2d2d2d] mt-1">{orderToConfirm.order_number}</h3>
+                <p className="text-sm text-[#6b6b6b]">Start delivery flow after confirmation.</p>
+              </div>
+
+              <div className="space-y-3 text-sm">
+                <div className="flex items-start gap-2">
+                  <MapPin className="w-4 h-4 text-green-600 mt-0.5" />
+                  <div>
+                    <p className="font-semibold text-[#2d2d2d]">Pickup</p>
+                    <p className="text-[#6b6b6b]">{orderToConfirm.pickup_address}</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2">
+                  <MapPin className="w-4 h-4 text-red-500 mt-0.5" />
+                  <div>
+                    <p className="font-semibold text-[#2d2d2d]">Delivery</p>
+                    <p className="text-[#6b6b6b]">{orderToConfirm.delivery_address}</p>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between rounded-xl bg-[#ff8303]/10 border border-[#ff8303]/30 px-4 py-3">
+                  <span className="text-[#6b6b6b] font-medium">Amount</span>
+                  <span className="text-2xl font-black text-[#fd5602]">₱{orderToConfirm.cod_amount.toLocaleString()}</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setOrderToConfirm(null)}
+                  disabled={acceptingOrderId === orderToConfirm.id}
+                  className="h-12 border-[#ff8303]/50 text-[#6b6b6b] hover:bg-[#ff8303]/10"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleAcceptOrder}
+                  disabled={acceptingOrderId === orderToConfirm.id}
+                  className="h-12 bg-[#fd5602] hover:bg-[#e54d00] text-white"
+                >
+                  {acceptingOrderId === orderToConfirm.id ? <Loader2 className="w-4 h-4 animate-spin" /> : "Confirm Accept"}
+                </Button>
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
 
       {/* Completed Today */}
       {completedOrders.length > 0 && (

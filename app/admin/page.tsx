@@ -6,20 +6,43 @@ import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { 
   Plus, LogOut, Package, Users, 
   RefreshCw, MapPin, Clock, Truck, Loader2, ChevronDown, ChevronUp, Camera
 } from "lucide-react"
+import type { LucideIcon } from "lucide-react"
 import type { Order, User } from "@/types"
 import AdminCreateOrder from "@/components/admin/create-order"
 import AdminOrderDetails from "@/components/admin/order-details"
 import { forceLogout } from "@/lib/utils/logout"
 import { OrderMap, LeafletCSS } from "@/components/maps/dynamic-maps"
 
+type AdminPane = "orders" | "riders"
+
+const adminNavItems: Array<{
+  value: AdminPane
+  label: string
+  icon: LucideIcon
+}> = [
+  { value: "orders", label: "Orders", icon: Package },
+  { value: "riders", label: "Riders", icon: Users },
+]
+
+function getInitials(fullName: string | null | undefined, email: string) {
+  const source = (fullName || "").trim() || email
+
+  return source
+    .split(/[\s@.]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("")
+}
+
 export default function AdminDashboard() {
   const router = useRouter()
   const [user, setUser] = useState<User | null>(null)
+  const [activeAdminTab, setActiveAdminTab] = useState<AdminPane>("orders")
   const [orders, setOrders] = useState<Order[]>([])
   const [riders, setRiders] = useState<User[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -64,12 +87,12 @@ export default function AdminDashboard() {
         .on(
           "postgres_changes",
           { event: "*", schema: "public", table: "orders" },
-          (payload) => {
+          (payload: unknown) => {
             console.log("Real-time order update:", payload)
             fetchOrders() // Refresh all orders on any change
           }
         )
-        .subscribe((status) => {
+        .subscribe((status: string) => {
           console.log("Orders subscription status:", status)
           if (status === "SUBSCRIBED") {
             setIsRealtimeActive(true)
@@ -85,12 +108,12 @@ export default function AdminDashboard() {
         .on(
           "postgres_changes",
           { event: "*", schema: "public", table: "users" },
-          (payload) => {
+          (payload: unknown) => {
             console.log("Real-time user update:", payload)
             fetchRiders()
           }
         )
-        .subscribe((status) => {
+        .subscribe((status: string) => {
           console.log("Users subscription status:", status)
         })
 
@@ -116,7 +139,7 @@ export default function AdminDashboard() {
               // Fetch fresh user data
               const { data: userData, error } = await supabase
                 .from("users")
-                .select("id, email, full_name, phone, role, is_active")
+                .select("id, email, full_name, phone, role, is_active, avatar_url")
                 .eq("id", biometricSession.user.id)
                 .single()
 
@@ -144,7 +167,7 @@ export default function AdminDashboard() {
       // Check user role
       const { data: userData, error } = await supabase
         .from("users")
-        .select("id, email, full_name, phone, role, is_active")
+        .select("id, email, full_name, phone, role, is_active, avatar_url")
         .eq("id", authUser.id)
         .single()
 
@@ -202,17 +225,19 @@ export default function AdminDashboard() {
       .limit(50)
 
     if (data) {
-      setOrders(data as Order[])
+      const fetchedOrders = data as Order[]
+
+      setOrders(fetchedOrders)
       
       const today = new Date().toISOString().split("T")[0]
       setStats({
-        totalOrders: data.length,
-        pendingOrders: data.filter(o => o.status === "pending").length,
-        completedToday: data.filter(o => 
-          o.status === "completed" && 
-          o.completed_at?.startsWith(today)
+        totalOrders: fetchedOrders.length,
+        pendingOrders: fetchedOrders.filter((order) => order.status === "pending").length,
+        completedToday: fetchedOrders.filter((order) => 
+          order.status === "completed" && 
+          order.completed_at?.startsWith(today)
         ).length,
-        activeRiders: new Set(data.filter(o => o.rider_id && o.status !== "completed").map(o => o.rider_id)).size,
+        activeRiders: new Set(fetchedOrders.filter((order) => order.rider_id && order.status !== "completed").map((order) => order.rider_id)).size,
       })
     }
   }
@@ -221,7 +246,7 @@ export default function AdminDashboard() {
     // Only select needed columns
     const { data } = await supabase
       .from("users")
-      .select("id, email, full_name, phone, role, is_active")
+      .select("id, email, full_name, phone, role, is_active, avatar_url")
       .eq("role", "rider")
       .eq("is_active", true)
 
@@ -384,7 +409,7 @@ export default function AdminDashboard() {
     <div className="min-h-screen bg-[#fffdf9]">
       {/* Header - Minimalist */}
       <header className="bg-white border-b border-[#ff8303]/30 sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-3 py-3 flex items-center justify-between gap-2">
+        <div className="w-full max-w-7xl mx-auto px-3 py-3 flex items-center justify-between gap-2 min-w-0">
           <div className="flex items-center gap-2 min-w-0">
             <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0">
               <img src="/AGARTHA.svg" alt="Agartha" className="w-10 h-10 object-contain" />
@@ -424,7 +449,7 @@ export default function AdminDashboard() {
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 py-6">
+      <div className="w-full max-w-7xl mx-auto px-4 py-6 pb-28 min-w-0">
         {/* Stats - Minimalist */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
           <Card className="p-4 bg-white border border-[#ff8303]/30">
@@ -454,26 +479,11 @@ export default function AdminDashboard() {
           Create New Order
         </Button>
 
-        {/* Tabs - Minimalist */}
-        <Tabs defaultValue="orders" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 h-12 bg-white border border-[#ff8303]/50 rounded-xl p-1 mb-4">
-            <TabsTrigger 
-              value="orders" 
-              className="gap-2 text-sm font-medium rounded-lg data-[state=active]:bg-[#fd5602] data-[state=active]:text-white data-[state=inactive]:text-[#6b6b6b]"
-            >
-              <Package className="w-4 h-4" />
-              Orders
-            </TabsTrigger>
-            <TabsTrigger 
-              value="riders" 
-              className="gap-2 text-sm font-medium rounded-lg data-[state=active]:bg-[#fd5602] data-[state=active]:text-white data-[state=inactive]:text-[#6b6b6b]"
-            >
-              <Users className="w-4 h-4" />
-              Riders
-            </TabsTrigger>
-          </TabsList>
+        {/* Active Pane */}
+        <div className="w-full min-w-0">
 
-          <TabsContent value="orders">
+          {activeAdminTab === "orders" ? (
+            <>
             {orders.length === 0 ? (
               <Card className="p-12 text-center bg-white border border-[#ff8303]/30">
                 <Package className="w-12 h-12 mx-auto text-[#ff8303] mb-4" />
@@ -565,9 +575,9 @@ export default function AdminDashboard() {
                 ))}
               </div>
             )}
-          </TabsContent>
-
-          <TabsContent value="riders">
+            </>
+          ) : (
+            <>
             {riders.length === 0 ? (
               <Card className="p-12 text-center bg-white border border-[#ff8303]/30">
                 <Users className="w-12 h-12 mx-auto text-[#ff8303] mb-4" />
@@ -579,6 +589,7 @@ export default function AdminDashboard() {
                   const isExpanded = expandedRider === rider.id
                   const orders = riderOrders[rider.id] || []
                   const isLoading = loadingRiderOrders[rider.id]
+                  const riderInitials = getInitials(rider.full_name, rider.email)
 
                   return (
                     <Card key={rider.id} className="bg-white border border-[#ff8303]/30">
@@ -586,20 +597,30 @@ export default function AdminDashboard() {
                         className="p-4 cursor-pointer hover:bg-[#ff8303]/5 transition-colors"
                         onClick={() => handleRiderExpand(rider.id)}
                       >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 bg-[#ff8303]/10 rounded-full flex items-center justify-center">
-                              <Truck className="w-6 h-6 text-[#fd5602]" />
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-12 h-12 bg-[#ff8303]/10 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0">
+                              {rider.avatar_url ? (
+                                <img
+                                  src={rider.avatar_url}
+                                  alt={`${rider.full_name || rider.email} avatar`}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : riderInitials ? (
+                                <span className="text-base font-black text-[#fd5602]">{riderInitials}</span>
+                              ) : (
+                                <Truck className="w-6 h-6 text-[#fd5602]" />
+                              )}
                             </div>
-                            <div>
-                              <p className="font-bold text-[#2d2d2d]">{rider.full_name}</p>
-                              <p className="text-sm text-[#6b6b6b]">{rider.email}</p>
+                            <div className="min-w-0">
+                              <p className="font-bold text-[#2d2d2d] truncate">{rider.full_name || rider.email}</p>
+                              <p className="text-sm text-[#6b6b6b] truncate">{rider.email}</p>
                               {rider.phone && (
                                 <p className="text-xs text-[#6b6b6b]">{rider.phone}</p>
                               )}
                             </div>
                           </div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-shrink-0">
                             <Badge className={rider.is_active ? "bg-green-100 text-green-800" : "bg-slate-100 text-slate-800"}>
                               {rider.is_active ? "Active" : "Inactive"}
                             </Badge>
@@ -744,9 +765,35 @@ export default function AdminDashboard() {
                 })}
               </div>
             )}
-          </TabsContent>
-        </Tabs>
+            </>
+          )}
+        </div>
       </div>
+
+      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-[#ff8303]/30 safe-area-bottom shadow-[0_-8px_24px_rgba(45,45,45,0.08)]">
+        <div className="w-full max-w-lg mx-auto grid grid-cols-2 px-2 py-2 min-w-0">
+          {adminNavItems.map((item) => {
+            const Icon = item.icon
+            const isActive = activeAdminTab === item.value
+
+            return (
+              <button
+                key={item.value}
+                type="button"
+                onClick={() => setActiveAdminTab(item.value)}
+                className={`touch-target flex flex-col items-center justify-center gap-1 rounded-xl text-xs font-semibold transition-colors ${
+                  isActive
+                    ? "bg-[#fd5602] text-white"
+                    : "text-[#6b6b6b] hover:bg-[#ff8303]/20 hover:text-[#2d2d2d]"
+                }`}
+              >
+                <Icon className="w-5 h-5" />
+                {item.label}
+              </button>
+            )
+          })}
+        </div>
+      </nav>
     </div>
   )
 }
