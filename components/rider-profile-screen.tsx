@@ -239,14 +239,14 @@ export default function RiderProfileScreen({ user, onUserUpdate }: RiderProfileS
           <Input value={formData.address} onChange={(event) => handleChange("address", event.target.value)} className="h-12 border-[#ff8303]/30 focus-visible:ring-[#fd5602]/30" />
         </label>
 
-        <div className="grid grid-cols-[1fr_auto] gap-3 items-end">
+        <div className="grid grid-cols-[minmax(0,1fr)_6rem] gap-3 items-end">
           <label className="space-y-1.5 block">
             <span className="text-xs font-semibold text-[#6b6b6b]">Birthdate</span>
             <Input type="date" value={formData.birthdate} onChange={(event) => handleChange("birthdate", event.target.value)} className="h-12 border-[#ff8303]/30 focus-visible:ring-[#fd5602]/30" />
           </label>
-          <div className="h-12 px-4 rounded-xl bg-[#ff8303]/10 border border-[#ff8303]/30 flex flex-col justify-center min-w-20">
-            <span className="text-[10px] text-[#6b6b6b] font-semibold">AGE</span>
-            <span className="text-[#2d2d2d] font-black">{age}</span>
+          <div className="h-12 rounded-md border border-[#ff8303]/30 bg-[#ff8303]/10 px-3 py-1 shadow-xs flex flex-col justify-center">
+            <span className="text-[10px] leading-none text-[#6b6b6b] font-semibold tracking-wide">AGE</span>
+            <span className="mt-1 text-base leading-none text-[#2d2d2d] font-black">{age}</span>
           </div>
         </div>
 

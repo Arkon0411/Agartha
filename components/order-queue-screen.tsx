@@ -311,8 +311,8 @@ export default function OrderQueueScreen({ riderId, onSelectOrder }: OrderQueueS
       </div>
 
       {orderToConfirm && (
-        <div className="fixed inset-0 z-50 bg-[#2d2d2d]/60 flex items-end sm:items-center justify-center p-4">
-          <Card className="w-full max-w-md p-5 bg-white border border-[#ff8303]/30 shadow-2xl">
+        <div className="fixed inset-0 z-[60] bg-[#2d2d2d]/60 flex items-center justify-center px-4 py-6">
+          <Card className="w-full max-w-md max-h-[calc(100dvh-3rem)] overflow-y-auto p-5 bg-white border border-[#ff8303]/30 shadow-2xl">
             <div className="space-y-4">
               <div>
                 <p className="text-xs font-semibold text-[#fd5602] tracking-wide">CONFIRM ACCEPTANCE</p>
