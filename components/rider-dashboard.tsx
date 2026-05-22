@@ -158,7 +158,12 @@ export default function RiderDashboard({ user, onUserUpdate }: RiderDashboardPro
 
   const renderActivePane = () => {
     if (activeTab === "orders") {
-      return <OrderQueueScreen riderId={user.id} onSelectOrder={handleSelectOrder} />
+      return (
+        <OrderQueueScreen
+          riderId={user.id}
+          onSelectOrder={handleSelectOrder}
+        />
+      )
     }
 
     if (activeTab === "history") {

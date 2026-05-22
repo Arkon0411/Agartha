@@ -244,10 +244,12 @@ export default function RiderProfileScreen({ user, onUserUpdate }: RiderProfileS
             <span className="text-xs font-semibold text-[#6b6b6b]">Birthdate</span>
             <Input type="date" value={formData.birthdate} onChange={(event) => handleChange("birthdate", event.target.value)} className="h-12 border-[#ff8303]/30 focus-visible:ring-[#fd5602]/30" />
           </label>
-          <div className="h-12 rounded-md border border-[#ff8303]/30 bg-[#ff8303]/10 px-3 py-1 shadow-xs flex flex-col justify-center">
-            <span className="text-[10px] leading-none text-[#6b6b6b] font-semibold tracking-wide">AGE</span>
-            <span className="mt-1 text-base leading-none text-[#2d2d2d] font-black">{age}</span>
-          </div>
+          <label className="space-y-1.5 block">
+            <span className="text-xs font-semibold text-[#6b6b6b]">Age</span>
+            <div className="h-12 rounded-md border border-[#ff8303]/30 bg-[#ff8303]/10 px-3 shadow-xs flex items-center">
+              <span className="text-base leading-none text-[#fd5602] font-black">{age}</span>
+            </div>
+          </label>
         </div>
 
         {error && <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">{error}</div>}
